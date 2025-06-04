@@ -1,0 +1,427 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Axolotl Clicker</title>
+  <style>
+    body {
+      font-family: 'Comic Sans MS', sans-serif;
+      text-align: center;
+      margin: 20px;
+      background: linear-gradient(to bottom right, #a1c4fd, #c2e9fb);
+      color: #333;
+      display: flex;
+      justify-content: center;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    #gameContainer {
+      max-width: 400px;
+      text-align: center;
+    }
+    h1 {
+      font-size: 48px;
+      color: #ff6ec7;
+      text-shadow: 2px 2px #fff;
+    }
+    button {
+      margin: 10px;
+      padding: 15px 30px;
+      font-size: 20px;
+      border: none;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: transform 0.1s, background 0.3s;
+    }
+    button:hover {
+      transform: scale(1.1);
+    }
+    #clickButton {
+      width: 200px;
+      margin: 20px auto;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    #clickButton:hover {
+      transform: scale(1.1);
+    }
+    #upgradeButton, #autoUpgradeButton, #doubleBoostButton {
+      background-color: #85e3ff;
+    }
+    #exportButton, #importButton, #gambleButton {
+      background-color: #d4a5ff;
+    }
+    #status p {
+      font-size: 24px;
+      margin: 6px 0;
+    }
+    #skinContainer {
+      max-width: 220px;
+      text-align: center;
+      border: 2px solid #ff6ec7;
+      border-radius: 16px;
+      padding: 10px;
+      background: white;
+      user-select: none;
+    }
+    #skinDisplay {
+      margin-bottom: 10px;
+    }
+    #skinDisplay svg {
+      width: 180px;
+      height: 180px;
+    }
+    #skinButtons {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 8px;
+    }
+    .skinButton {
+      width: 40px;
+      height: 40px;
+      border-radius: 8px;
+      cursor: pointer;
+      border: 2px solid transparent;
+      transition: border-color 0.2s;
+    }
+    .skinButton.selected {
+      border-color: #ff6ec7;
+    }
+  </style>
+</head>
+<body>
+  <div id="gameContainer">
+    <h1>Axolotl Clicker</h1>
+
+    <div id="status">
+      <p>Points: <span id="points">0</span></p>
+      <p>Points per click: <span id="pointsPerClick">1</span></p>
+      <p>Auto Point Giver Level: <span id="autoPointLevel">0</span></p>
+      <p>Total Clicks: <span id="clicks">0</span></p>
+    </div>
+
+    <!-- Axolotl Click Button -->
+    <div id="clickButton" title="Click me!">
+      <!-- SVG for the axolotl skin will be injected here -->
+    </div>
+
+    <button id="upgradeButton">Upgrade Click (+1) — Cost: <span id="upgradeCost">50</span></button>
+    <button id="autoUpgradeButton">Buy Auto Point Giver — Cost: 500,000</button><br>
+    <button id="gambleButton">🎲 Gamble 10,000 for a chance at 500,000</button>
+    <button id="doubleBoostButton">⚡ Double Points (15s) — Cost: 20,000</button><br><br>
+    <button id="exportButton">Export Data</button>
+    <button id="importButton">Import Data</button>
+    <input type="file" id="importFile" style="display:none" />
+  </div>
+
+  <!-- Skin selector container -->
+  <div id="skinContainer">
+    <h2>Axolotl Skins</h2>
+    <div id="skinDisplay"></div>
+    <div id="skinButtons"></div>
+    <p>Each skin costs 10,000 points</p>
+  </div>
+
+  <script>
+    // --- Variables ---
+    let points = 0;
+    let pointsPerClick = 1;
+    let clickUpgradeLevel = 0;
+    let clickUpgradeCost = 50;
+    let autoPointLevel = 0;
+    let bonusMultiplierActive = false;
+    let triplePointsActive = false;
+    let clicks = 0;
+    let currentSkin = 0;
+    let ownedSkins = [0]; // Skin 0 is default owned
+
+    // Fixed encryption password
+    const encryptionPassword = "AXOCHEAT";
+
+    // Axolotl skins colors (rainbow colors)
+    const skinColors = [
+      '#FF0000', // Red
+      '#FF7F00', // Orange
+      '#FFFF00', // Yellow
+      '#00FF00', // Green
+      '#0000FF', // Blue
+      '#4B0082', // Indigo
+      '#8B00FF'  // Violet
+    ];
+
+    // --- Update display ---
+    function updateDisplay() {
+      document.getElementById('points').textContent = points;
+      document.getElementById('pointsPerClick').textContent = pointsPerClick;
+      document.getElementById('upgradeCost').textContent = clickUpgradeCost;
+      document.getElementById('autoPointLevel').textContent = autoPointLevel;
+      document.getElementById('clicks').textContent = clicks;
+      updateAxolotlSkin();
+      updateSkinButtons();
+    }
+
+    // --- Axolotl SVG generator ---
+    function getAxolotlSVG(color) {
+      return `
+        <svg width="200" height="200" viewBox="0 0 200 200" xmlns="http://www.w3.org/2000/svg">
+          <!-- Body -->
+          <ellipse cx="100" cy="120" rx="50" ry="60" fill="${color}" />
+          <!-- Tail -->
+          <path d="M150,130 Q180,120 150,180" fill="${color}" />
+          <!-- Head -->
+          <circle cx="100" cy="60" r="40" fill="${color}" />
+          <!-- Eyes -->
+          <circle cx="85" cy="55" r="5" fill="#000" />
+          <circle cx="115" cy="55" r="5" fill="#000" />
+          <!-- Smile -->
+          <path d="M85,75 Q100,90 115,75" stroke="#000" stroke-width="2" fill="none" />
+          <!-- Frills (left) -->
+          <line x1="60" y1="40" x2="30" y2="20" stroke="#ff69b4" stroke-width="4" />
+          <line x1="60" y1="50" x2="25" y2="50" stroke="#ff69b4" stroke-width="4" />
+          <line x1="60" y1="60" x2="30" y2="80" stroke="#ff69b4" stroke-width="4" />
+          <!-- Frills (right) -->
+          <line x1="140" y1="40" x2="170" y2="20" stroke="#ff69b4" stroke-width="4" />
+          <line x1="140" y1="50" x2="175" y2="50" stroke="#ff69b4" stroke-width="4" />
+          <line x1="140" y1="60" x2="170" y2="80" stroke="#ff69b4" stroke-width="4" />
+        </svg>`;
+    }
+
+    // --- Update Axolotl skin SVG ---
+    function updateAxolotlSkin() {
+      const container = document.getElementById('clickButton');
+      container.innerHTML = getAxolotlSVG(skinColors[currentSkin]);
+    }
+
+    // --- Skin purchase and select logic ---
+    const skinButtonsContainer = document.getElementById('skinButtons');
+
+    function updateSkinButtons() {
+      skinButtonsContainer.innerHTML = '';
+      for (let i = 0; i < skinColors.length; i++) {
+        const btn = document.createElement('div');
+        btn.classList.add('skinButton');
+        btn.style.backgroundColor = skinColors[i];
+        if (ownedSkins.includes(i)) {
+          btn.title = 'Owned - Click to select';
+          btn.addEventListener('click', () => {
+            currentSkin = i;
+            updateDisplay();
+          });
+        } else {
+          btn.title = 'Buy for 10,000 points';
+          btn.style.cursor = 'pointer';
+          btn.addEventListener('click', () => {
+            if (points >= 10000) {
+              points -= 10000;
+              ownedSkins.push(i);
+              currentSkin = i;
+              updateDisplay();
+            } else {
+              alert('Not enough points to buy this skin!');
+            }
+          });
+        }
+        if (i === currentSkin) {
+          btn.classList.add('selected');
+        }
+        skinButtonsContainer.appendChild(btn);
+      }
+    }
+
+    // --- Clicking the Axolotl ---
+    document.getElementById('clickButton').addEventListener('click', () => {
+      let gain = pointsPerClick;
+      if (bonusMultiplierActive) gain *= 2;
+      if (triplePointsActive) gain *= 3;
+
+      points += gain;
+      clicks++;
+      updateDisplay();
+
+      // Check for triple points trigger
+      if (clicks > 0 && clicks % 50 === 0 && !triplePointsActive) {
+        triplePointsActive = true;
+        setTimeout(() => {
+          triplePointsActive = false;
+          updateDisplay();
+        }, 15000);
+      }
+    });
+
+    // --- Upgrade click ---
+    document.getElementById('upgradeButton').addEventListener('click', () => {
+      if (points >= clickUpgradeCost) {
+        points -= clickUpgradeCost;
+        clickUpgradeLevel++;
+        pointsPerClick++;
+        clickUpgradeCost = Math.floor(clickUpgradeCost * 1.2);
+        updateDisplay();
+      }
+    });
+
+    // --- Auto point giver ---
+    document.getElementById('autoUpgradeButton').addEventListener('click', () => {
+      if (points >= 500000) {
+        points -= 500000;
+        autoPointLevel++;
+        updateDisplay();
+      }
+    });
+
+    // --- Auto point interval ---
+    setInterval(() => {
+      points += autoPointLevel;
+      updateDisplay();
+    }, 1000);
+
+    // --- Double points boost ---
+    document.getElementById('doubleBoostButton').addEventListener('click', () => {
+      if (points >= 20000 && !bonusMultiplierActive) {
+        points -= 20000;
+        bonusMultiplierActive = true;
+        updateDisplay();
+        setTimeout(() => {
+          bonusMultiplierActive = false;
+          updateDisplay();
+        }, 15000);
+      }
+    });
+
+    // --- Gamble ---
+    document.getElementById('gambleButton').addEventListener('click', () => {
+      if (points >= 10000) {
+        points -= 10000;
+        const chance = Math.random();
+        if (chance < 0.05) {
+          points += 500000;
+          alert('🎉 You won 500,000 points!');
+        } else {
+          alert('Better luck next time!');
+        }
+        updateDisplay();
+      }
+    });
+
+    // --- Encryption with Web Crypto API ---
+
+    // Helpers
+    function strToUint8Array(str) {
+      return new TextEncoder().encode(str);
+    }
+
+    function uint8ArrayToBase64(arr) {
+      return btoa(String.fromCharCode(...arr));
+    }
+
+    function base64ToUint8Array(base64) {
+      return Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+    }
+
+    async function getKeyFromPassword(password, salt) {
+      const pwUtf8 = strToUint8Array(password);
+      const saltUtf8 = salt;
+      const keyMaterial = await crypto.subtle.importKey(
+        'raw', pwUtf8, 'PBKDF2', false, ['deriveKey']
+      );
+      return crypto.subtle.deriveKey(
+        { name: 'PBKDF2', salt: saltUtf8, iterations: 100000, hash: 'SHA-256' },
+        keyMaterial,
+        { name: 'AES-GCM', length: 256 },
+        false,
+        ['encrypt', 'decrypt']
+      );
+    }
+
+    async function encryptText(plaintext, password) {
+      const salt = crypto.getRandomValues(new Uint8Array(16));
+      const iv = crypto.getRandomValues(new Uint8Array(12));
+      const key = await getKeyFromPassword(password, salt);
+      const encoded = strToUint8Array(plaintext);
+      const ciphertext = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, encoded);
+
+      const combined = new Uint8Array(salt.byteLength + iv.byteLength + ciphertext.byteLength);
+      combined.set(salt, 0);
+      combined.set(iv, salt.byteLength);
+      combined.set(new Uint8Array(ciphertext), salt.byteLength + iv.byteLength);
+
+      return uint8ArrayToBase64(combined);
+    }
+
+    async function decryptText(dataB64, password) {
+      const combined = base64ToUint8Array(dataB64);
+      const salt = combined.slice(0, 16);
+      const iv = combined.slice(16, 28);
+      const ciphertext = combined.slice(28);
+
+      const key = await getKeyFromPassword(password, salt);
+
+      try {
+        const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv }, key, ciphertext);
+        return new TextDecoder().decode(decrypted);
+      } catch (e) {
+        throw new Error('Decryption failed');
+      }
+    }
+
+    // --- Export Data ---
+    document.getElementById('exportButton').addEventListener('click', async () => {
+      const saveData = {
+        points, pointsPerClick, clickUpgradeLevel, clickUpgradeCost,
+        autoPointLevel, bonusMultiplierActive, triplePointsActive,
+        clicks, currentSkin, ownedSkins
+      };
+      try {
+        const encryptedStr = await encryptText(JSON.stringify(saveData), encryptionPassword);
+        const dataStr = "data:text/plain;charset=utf-8," + encodeURIComponent(encryptedStr);
+        const dlAnchorElem = document.createElement('a');
+        dlAnchorElem.setAttribute("href", dataStr);
+        dlAnchorElem.setAttribute("download", "axolotl_clicker_save.txt");
+        dlAnchorElem.click();
+      } catch {
+        alert('Encryption failed.');
+      }
+    });
+
+    // --- Import Data ---
+    document.getElementById('importButton').addEventListener('click', () => {
+      document.getElementById('importFile').click();
+    });
+
+    document.getElementById('importFile').addEventListener('change', async (event) => {
+      const file = event.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = async (e) => {
+        const encryptedStr = e.target.result.trim();
+        try {
+          const decryptedStr = await decryptText(encryptedStr, encryptionPassword);
+          const data = JSON.parse(decryptedStr);
+
+          points = data.points || 0;
+          pointsPerClick = data.pointsPerClick || 1;
+          clickUpgradeLevel = data.clickUpgradeLevel || 0;
+          clickUpgradeCost = data.clickUpgradeCost || 50;
+          autoPointLevel = data.autoPointLevel || 0;
+          bonusMultiplierActive = data.bonusMultiplierActive || false;
+          triplePointsActive = data.triplePointsActive || false;
+          clicks = data.clicks || 0;
+          currentSkin = data.currentSkin || 0;
+          ownedSkins = Array.isArray(data.ownedSkins) ? data.ownedSkins : [0];
+
+          updateDisplay();
+          alert('Data imported successfully!');
+        } catch {
+          alert('Failed to decrypt or parse save file. The save file may be corrupted or the password is wrong.');
+        }
+      };
+      reader.readAsText(file);
+      event.target.value = "";
+    });
+
+    // --- Initial Display ---
+    updateDisplay();
+  </script>
+</body>
+</html>
